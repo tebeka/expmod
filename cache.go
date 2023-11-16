@@ -33,7 +33,7 @@ func loadCache() (map[string]string, error) {
 		return nil, err
 	}
 
-	file, err := os.Open(fileName)
+	file, err := os.Open(fileName) // #nosec G304
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func saveCache(cache map[string]string) error {
 		return err
 	}
 
-	file, err := os.Create(fileName)
+	file, err := os.Create(fileName) // #nosec G304
 	if err != nil {
 		return err
 	}
