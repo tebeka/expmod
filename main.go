@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/url"
@@ -40,12 +42,24 @@ func main() {
 		r = file
 	}
 
-	if err := pkgsInfo(r); err != nil {
+	cache, err := loadCache()
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			log.Printf("warning: can't load cache: %s", err)
+		}
+		cache = make(map[string]string)
+	}
+
+	if err := pkgsInfo(r, cache); err != nil {
 		log.Fatalf("error: %s", err)
+	}
+
+	if err := saveCache(cache); err != nil {
+		log.Printf("warning: can't save cache: %s", err)
 	}
 }
 
-func pkgsInfo(r io.Reader) error {
+func pkgsInfo(r io.Reader, cache map[string]string) error {
 	s := bufio.NewScanner(r)
 	for s.Scan() {
 		line := strings.TrimSpace(s.Text())
@@ -59,10 +73,16 @@ func pkgsInfo(r io.Reader) error {
 			continue
 		}
 
-		desc, err := repoDesc(owner, repo)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s - %s\n", line, err)
-			continue
+		key := fmt.Sprintf("%s/%s", owner, repo)
+		desc, ok := cache[key]
+		if !ok {
+			var err error
+			desc, err = repoDesc(owner, repo)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: %s - %s\n", line, err)
+				continue
+			}
+			cache[key] = desc
 		}
 
 		fmt.Printf("%s:\n\t%s\n", line, desc)
@@ -105,8 +125,9 @@ func repoDesc(owner, repo string) (string, error) {
 	return reply.Description, nil
 }
 
+// repoInfo extract repository information from line.
+// e.g. "github.com/go-redis/redis/v8 v8.11.5" -> "go-redis", "redis"
 func repoInfo(line string) (string, string) {
-	// "github.com/go-redis/redis/v8 v8.11.5 // indirect" -> "go-redis", "redis"
 	fields := strings.Split(line, "/")
 	if len(fields) < 3 {
 		return "", ""
