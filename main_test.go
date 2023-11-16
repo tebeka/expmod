@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -40,6 +41,10 @@ func Test_repoInfo(t *testing.T) {
 }
 
 func Test_repoDesc(t *testing.T) {
+	if os.Getenv("CI") != "" {
+		t.Skip("In CI")
+	}
+
 	owner, repo := "pkg", "errors"
 	expected := "Simple error handling primitives" // FIXME: brittle
 
