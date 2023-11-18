@@ -96,7 +96,7 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 			cache[key] = desc
 		}
 
-		fmt.Printf("%s:\n\t%s\n", line, desc)
+		fmt.Printf("%s %s:\n\t%s\n", line, require.Mod.Version, desc)
 	}
 
 	if err := s.Err(); err != nil {
