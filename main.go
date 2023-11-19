@@ -62,7 +62,8 @@ func main() {
 }
 
 func pkgsInfo(r io.Reader, cache map[string]string) error {
-	data, err := io.ReadAll(io.LimitReader(r, 1<<24)) // go.mod files are limited to 16 MiB
+	const maxSize = 16 * (1 << 20) // go.mod files are limited to 16 MiB
+	data, err := io.ReadAll(io.LimitReader(r, maxSize))
 	if err != nil {
 		return err
 	}
