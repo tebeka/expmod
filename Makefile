@@ -15,6 +15,4 @@ install-deps:
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 	@echo "Done. Don't forget to add '\$$(go env GOPATH)/bin' to your '\$$PATH'"
 
-ci:
-	install-deps
-	test
+ci: install-deps test
