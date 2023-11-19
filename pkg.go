@@ -14,6 +14,7 @@ import (
 	"golang.org/x/net/html"
 )
 
+//lint:ignore U1000 WIP
 func repoFromPkg(ctx context.Context, dep string) (string, error) {
 	url := fmt.Sprintf("https://pkg.go.dev/%s", dep)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
