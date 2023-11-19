@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -67,12 +66,12 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 	if err != nil {
 		return err
 	}
+
 	f, err := modfile.ParseLax("go.mod", data, nil)
 	if err != nil {
 		return err
 	}
 
-	s := bufio.NewScanner(r)
 	for _, require := range f.Require {
 		if ignored(require) {
 			continue
@@ -98,10 +97,6 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 		}
 
 		fmt.Printf("%s %s:\n\t%s\n", line, require.Mod.Version, desc)
-	}
-
-	if err := s.Err(); err != nil {
-		return err
 	}
 
 	return nil
