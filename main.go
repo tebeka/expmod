@@ -19,13 +19,26 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+var (
+	version = "<dev>"
+	commit  = "<head>"
+
+	showVersion bool
+)
+
 func main() {
+	exe := path.Base(os.Args[0])
+	flag.BoolVar(&showVersion, "version", false, "show version and exit")
 	flag.Usage = func() {
-		name := path.Base(os.Args[0])
-		fmt.Fprintf(os.Stderr, "usage: %s [file]\n", name)
+		fmt.Fprintf(os.Stderr, "usage: %s [options] [file]\nOptions:\n", exe)
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("%s version %s (commit %s)\n", exe, version, commit)
+		os.Exit(0)
+	}
 
 	if flag.NArg() > 1 {
 		fmt.Fprintf(os.Stderr, "error: too many arguments\n")
