@@ -16,6 +16,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/modfile"
 )
 
 func main() {
@@ -60,12 +62,21 @@ func main() {
 }
 
 func pkgsInfo(r io.Reader, cache map[string]string) error {
+	data, err := io.ReadAll(io.LimitReader(r, 1<<24)) // go.mod files are limited to 16 MiB
+	if err != nil {
+		return err
+	}
+	f, err := modfile.ParseLax("go.mod", data, nil)
+	if err != nil {
+		return err
+	}
+
 	s := bufio.NewScanner(r)
-	for s.Scan() {
-		line := strings.TrimSpace(s.Text())
-		if ignored(line) {
+	for _, require := range f.Require {
+		if ignored(require) {
 			continue
 		}
+		line := require.Mod.Path
 
 		owner, repo := repoInfo(line)
 		if owner == "" || repo == "" {
@@ -85,7 +96,7 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 			cache[key] = desc
 		}
 
-		fmt.Printf("%s:\n\t%s\n", line, desc)
+		fmt.Printf("%s %s:\n\t%s\n", line, require.Mod.Version, desc)
 	}
 
 	if err := s.Err(); err != nil {
@@ -137,12 +148,12 @@ func repoInfo(line string) (string, string) {
 	return owner, repo
 }
 
-func ignored(line string) bool {
-	if !strings.HasPrefix(line, "github.com") {
+func ignored(require *modfile.Require) bool {
+	if !strings.HasPrefix(require.Mod.Path, "github.com") {
 		return true
 	}
 
-	if strings.Contains(line, "// indirect") {
+	if require.Indirect {
 		return true
 	}
 
