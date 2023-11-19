@@ -16,6 +16,10 @@ github.com/stretchr/testify v1.8.4:
 
 ## Install
 
+You can get the tool from the [GitHub release section](https://github.com/tebeka/expmod/releases), or:
+
 ```
-go install github.com/tebeka/expmod@latest
+$ go install github.com/tebeka/expmod@latest
 ```
+
+Make sure `$(go env GOPATH)/bin` is in your `$PATH`.

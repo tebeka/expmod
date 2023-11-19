@@ -20,8 +20,7 @@ import (
 )
 
 var (
-	version = "<dev>"
-	commit  = "<head>"
+	version, commit = "???", "???"
 
 	showVersion bool
 )
