@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"golang.org/x/mod/modfile"
 )
 
 var infoCases = []struct {
@@ -59,28 +58,6 @@ func Test_repoDesc(t *testing.T) {
 	require.Equal(t, expected, desc, "description")
 }
 
-func Test_ignored(t *testing.T) {
-	const gomod = `
-module test
-go 1.20
-require (
-	cuelang.org/go v0.4.3
-	github.com/cenkalti/backoff/v4 v4.1.2
-	github.com/benbjohnson/clock v1.3.3 // indirect
-)
-`
-	f, err := modfile.ParseLax("go.mod", []byte(gomod), nil)
-	require.NoError(t, err)
-
-	ignores := []bool{true, false, true}
-	for i, req := range f.Require {
-		t.Run(req.Mod.Path, func(t *testing.T) {
-			v := ignored(req)
-			require.Equal(t, ignores[i], v)
-		})
-	}
-}
-
 func testCtx(t *testing.T) (context.Context, context.CancelFunc) {
 	deadline, ok := t.Deadline()
 	if ok {
@@ -92,7 +69,6 @@ func testCtx(t *testing.T) (context.Context, context.CancelFunc) {
 
 func build(t *testing.T) string {
 	exe := path.Join(t.TempDir(), "expmod")
-	t.Logf("exe: %q", exe)
 	ctx, cancel := testCtx(t)
 	defer cancel()
 
@@ -107,20 +83,36 @@ var exeExpected = `github.com/sahilm/fuzzy v0.1.0:
 github.com/stretchr/testify v1.8.4:
 	A toolkit with common assertions and mocks that plays nicely with the standard library
 `
+var proxyMod = "testdata/proxy.mod"
+var proxyExpected = `gopkg.in/yaml.v3 v3.0.1:
+	YAML support for the Go language.
+`
+
+var exeCases = []struct {
+	file   string
+	output string
+}{
+	{testMod, exeExpected},
+	{proxyMod, proxyExpected},
+}
 
 func TestExe(t *testing.T) {
 	exe := build(t)
 
-	ctx, cancel := testCtx(t)
-	defer cancel()
+	for _, tc := range exeCases {
+		t.Run(tc.file, func(t *testing.T) {
+			ctx, cancel := testCtx(t)
+			defer cancel()
 
-	var buf bytes.Buffer
-	cmd := exec.CommandContext(ctx, exe, testMod)
-	cmd.Stdout = &buf
-	err := cmd.Run()
+			var buf bytes.Buffer
+			cmd := exec.CommandContext(ctx, exe, testMod)
+			cmd.Stdout = &buf
+			err := cmd.Run()
 
-	require.NoError(t, err, "run")
-	require.Equal(t, exeExpected, buf.String())
+			require.NoError(t, err, "run")
+			require.Equal(t, exeExpected, buf.String())
+		})
+	}
 }
 
 func TestExeStdin(t *testing.T) {

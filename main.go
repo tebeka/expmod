@@ -23,11 +23,13 @@ var (
 	version, commit = "???", "???"
 
 	showVersion bool
+	httpTimeout time.Duration
 )
 
 func main() {
 	exe := path.Base(os.Args[0])
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
+	flag.DurationVar(&httpTimeout, "timeout", 3*time.Second, "HTTP timeout")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [file]\nOptions:\n", exe)
 		flag.PrintDefaults()
@@ -85,14 +87,27 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 	}
 
 	for _, require := range f.Require {
-		if ignored(require) {
+		if require.Indirect {
 			continue
 		}
-		line := require.Mod.Path
 
-		owner, repo := repoInfo(line)
+		pkg := require.Mod.Path
+		pkgName := pkg // for proxy
+		if !strings.HasPrefix(pkg, "github.com") {
+			var err error
+			ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+			defer cancel()
+
+			pkg, err = proxyRepo(ctx, pkg)
+			if err != nil {
+				// TODO: log?
+				continue
+			}
+		}
+
+		owner, repo := repoInfo(pkg)
 		if owner == "" || repo == "" {
-			fmt.Fprintf(os.Stderr, "error: %s\n", line)
+			fmt.Fprintf(os.Stderr, "error: %s\n", pkg)
 			continue
 		}
 
@@ -102,13 +117,13 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 			var err error
 			desc, err = repoDesc(owner, repo)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: %s - %s\n", line, err)
+				fmt.Fprintf(os.Stderr, "error: %s - %s\n", pkg, err)
 				continue
 			}
 			cache[key] = desc
 		}
 
-		fmt.Printf("%s %s:\n\t%s\n", line, require.Mod.Version, desc)
+		fmt.Printf("%s %s:\n\t%s\n", pkgName, require.Mod.Version, desc)
 	}
 
 	return nil
@@ -154,16 +169,4 @@ func repoInfo(line string) (string, string) {
 	owner := fields[1]
 	repo, _, _ := strings.Cut(fields[2], " ")
 	return owner, repo
-}
-
-func ignored(require *modfile.Require) bool {
-	if !strings.HasPrefix(require.Mod.Path, "github.com") {
-		return true
-	}
-
-	if require.Indirect {
-		return true
-	}
-
-	return false
 }
