@@ -26,6 +26,10 @@ var (
 	httpTimeout time.Duration
 )
 
+const (
+	tokenKey = "GITHUB_TOKEN"
+)
+
 func main() {
 	exe := path.Base(os.Args[0])
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
@@ -33,6 +37,8 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [file]\nOptions:\n", exe)
 		flag.PrintDefaults()
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintf(os.Stderr, "If %s is found in the environment, it will be use to access GitHub API.\n", tokenKey)
 	}
 	flag.Parse()
 
@@ -137,6 +143,11 @@ func repoDesc(owner, repo string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
+	}
+
+	token := os.Getenv(tokenKey)
+	if token != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
 	resp, err := http.DefaultClient.Do(req)

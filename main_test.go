@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -157,4 +159,33 @@ func TestExeFlags(t *testing.T) {
 			require.Contains(t, string(out), tc.fragment)
 		})
 	}
+}
+
+type mockTripper struct {
+	token string
+}
+
+func (t *mockTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	auth := req.Header.Get("Authorization")
+	i := len("Bearer ")
+	if len(auth) > i {
+		t.token = auth[i:]
+	}
+
+	return nil, fmt.Errorf("oopsie")
+}
+
+func TestGHToken(t *testing.T) {
+	token := "s3cr3t"
+	t.Setenv(tokenKey, token)
+
+	oldTransport := http.DefaultClient.Transport
+	var mt mockTripper
+	http.DefaultClient.Transport = &mt
+	t.Cleanup(func() {
+		http.DefaultClient.Transport = oldTransport
+	})
+
+	repoDesc("tebeka", "expmod")
+	require.Equal(t, token, mt.token)
 }
