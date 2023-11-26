@@ -30,6 +30,11 @@ const (
 	tokenKey = "GITHUB_TOKEN" // #nosec G101
 )
 
+var extraHelp = `
+If %s is found in the environment, it will be use to access GitHub API.
+"Human" GitHub URLs (e.g. https://github.com/tebeka/expmod/blob/main/go.mod) will be redirected to raw content.
+`
+
 func main() {
 	exe := path.Base(os.Args[0])
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
@@ -37,8 +42,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [file or URL]\nOptions:\n", exe)
 		flag.PrintDefaults()
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintf(os.Stderr, "If %s is found in the environment, it will be use to access GitHub API.\n", tokenKey)
+		fmt.Fprintf(os.Stderr, extraHelp, tokenKey)
 	}
 	flag.Parse()
 
