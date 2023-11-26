@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -66,17 +66,18 @@ func main() {
 	cache, err := loadCache()
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			log.Printf("warning: can't load cache: %s", err)
+			slog.Warn("can't load cache", "error", err)
 		}
 		cache = make(map[string]string)
 	}
 
 	if err := pkgsInfo(r, cache); err != nil {
-		log.Fatalf("error: %s", err)
+		fmt.Fprintf(os.Stderr, "error: too many arguments\n")
+		os.Exit(1)
 	}
 
 	if err := saveCache(cache); err != nil {
-		log.Printf("warning: can't save cache: %s", err)
+		slog.Warn("can't save cache", "error", err)
 	}
 }
 
@@ -113,7 +114,7 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 
 		owner, repo := repoInfo(pkg)
 		if owner == "" || repo == "" {
-			fmt.Fprintf(os.Stderr, "error: %s\n", pkg)
+			slog.Warn("can't get info", "package", pkg)
 			continue
 		}
 
@@ -123,7 +124,7 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 			var err error
 			desc, err = repoDesc(owner, repo)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: %s - %s\n", pkg, err)
+				slog.Error("can't get description", "package", pkgName, "repo", pkg, "error", err)
 				continue
 			}
 			cache[key] = desc
