@@ -17,3 +17,7 @@ install-tools:
 	@echo "Done. Don't forget to add '\$$(go env GOPATH)/bin' to your '\$$PATH'"
 
 ci: install-tools test
+
+release-patch:
+	git tag $(shell svu patch)
+	git push --tags
