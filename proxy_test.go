@@ -11,8 +11,9 @@ var htmlCases = []struct {
 	file string
 	repo string
 }{
-	{"testdata/get-1.html", "github.com/go-yaml/yaml"},
-	{"testdata/get-2.html", "github.com/uber-go/zap"},
+	{"testdata/yaml.html", "github.com/go-yaml/yaml"},
+	{"testdata/zap.html", "github.com/uber-go/zap"},
+	{"testdata/k8s.html", "github.com/kubernetes/kubernetes"},
 }
 
 func Test_parseProxyHTML(t *testing.T) {

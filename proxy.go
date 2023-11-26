@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"golang.org/x/net/html"
 )
@@ -68,5 +69,5 @@ func parseProxyHTML(r io.Reader) (string, error) {
 		return "", fmt.Errorf("can't find github repo in meta")
 	}
 
-	return matches[1], nil
+	return strings.TrimSpace(matches[1]), nil
 }
