@@ -27,7 +27,7 @@ var (
 )
 
 const (
-	tokenKey = "GITHUB_TOKEN"
+	tokenKey = "GITHUB_TOKEN" // #nosec G101
 )
 
 func main() {
