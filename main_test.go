@@ -189,3 +189,13 @@ func TestGHToken(t *testing.T) {
 	repoDesc("tebeka", "expmod")
 	require.Equal(t, token, mt.token)
 }
+
+func Test_githubRawURL(t *testing.T) {
+	// TODO: More tests
+	url := "https://github.com/nxadm/tail/blob/master/go.mod"
+	expected := "https://raw.githubusercontent.com/nxadm/tail/master/go.mod"
+
+	out, err := githubRawURL(url)
+	require.NoError(t, err)
+	require.Equal(t, expected, out)
+}

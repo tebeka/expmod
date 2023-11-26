@@ -35,7 +35,7 @@ func main() {
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
 	flag.DurationVar(&httpTimeout, "timeout", 3*time.Second, "HTTP timeout")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [options] [file]\nOptions:\n", exe)
+		fmt.Fprintf(os.Stderr, "usage: %s [options] [file or URL]\nOptions:\n", exe)
 		flag.PrintDefaults()
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintf(os.Stderr, "If %s is found in the environment, it will be use to access GitHub API.\n", tokenKey)
@@ -52,15 +52,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	var r io.Reader = os.Stdin
+	var r io.ReadCloser = os.Stdin
 	if flag.NArg() == 1 {
-		file, err := os.Open(flag.Arg(0))
+		uri := flag.Arg(0)
+
+		var err error
+		if strings.HasPrefix(uri, "https://") || strings.HasPrefix(uri, "http://") {
+			r, err = openURL(uri)
+		} else {
+			r, err = os.Open(flag.Arg(0))
+		}
+
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s", err)
 			os.Exit(1)
 		}
-		defer file.Close()
-		r = file
+		defer r.Close()
 	}
 
 	cache, err := loadCache()
@@ -181,4 +188,58 @@ func repoInfo(line string) (string, string) {
 	owner := fields[1]
 	repo, _, _ := strings.Cut(fields[2], " ")
 	return owner, repo
+}
+
+/*
+https://github.com/nxadm/tail/blob/master/go.mod ->
+https://raw.githubusercontent.com/nxadm/tail/master/go.mod
+*/
+func githubRawURL(ghURL string) (string, error) {
+	u, err := url.Parse(ghURL)
+	if err != nil {
+		return "", err
+	}
+	// https://github.com/nxadm/tail/blob/master/go.mod
+	//                 0    1     2    3    4      5
+	fields := strings.Split(u.Path, "/")
+	if len(fields) < 6 {
+		return "", fmt.Errorf("%q too short", ghURL)
+	}
+	owner, repo, branch, file := fields[1], fields[2], fields[4], fields[5]
+	u.Host = "raw.githubusercontent.com"
+	path, err := url.JoinPath(owner, repo, branch, file)
+	if err != nil {
+		return "", fmt.Errorf("can't construct URL - %w", err)
+	}
+
+	u.Path = path
+	return u.String(), nil
+}
+
+func openURL(url string) (io.ReadCloser, error) {
+	if strings.Contains(url, "github.com") {
+		var err error
+		url, err = githubRawURL(url)
+		if err != nil {
+			return nil, fmt.Errorf("%q: bad URL- %w", url, err)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%q: bad URL- %w", url, err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%q: can't get- %w", url, err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%q: bad status - %s", url, resp.Status)
+	}
+
+	return resp.Body, nil
 }
