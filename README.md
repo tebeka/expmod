@@ -37,4 +37,6 @@ You can get the tool from the [GitHub release section](https://github.com/tebeka
 $ go install github.com/tebeka/expmod@latest
 ```
 
+(If you `go install`, `expmod` won't display the right version with the `-version` flag).
+
 Make sure `$(go env GOPATH)/bin` is in your `$PATH`.
