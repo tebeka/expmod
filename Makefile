@@ -14,6 +14,7 @@ install-tools:
 		tar xz -C $(shell go env GOPATH)/bin gosec
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	go install honnef.co/go/tools/cmd/staticcheck@latest
+	go install github.com/caarlos0/svu@latest
 	@echo "Done. Don't forget to add '\$$(go env GOPATH)/bin' to your '\$$PATH'"
 
 ci: install-tools test
