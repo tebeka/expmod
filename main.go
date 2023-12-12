@@ -24,6 +24,7 @@ var (
 
 	showVersion bool
 	httpTimeout time.Duration
+	repoName    string
 )
 
 const (
@@ -39,6 +40,7 @@ func main() {
 	exe := path.Base(os.Args[0])
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
 	flag.DurationVar(&httpTimeout, "timeout", 3*time.Second, "HTTP timeout")
+	flag.StringVar(&repoName, "repo", "", "GitHub repository name")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [file or URL]\nOptions:\n", exe)
 		flag.PrintDefaults()
@@ -56,9 +58,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	if flag.NArg() == 1 && repoName != "" {
+		fmt.Fprintf(os.Stderr, "error: both repo & file/URL provided\n")
+		os.Exit(1)
+	}
+
 	var r io.ReadCloser = os.Stdin
-	if flag.NArg() == 1 {
-		uri := flag.Arg(0)
+	if flag.NArg() == 1 || repoName != "" {
+		var uri string
+		if repoName != "" {
+			uri = fmt.Sprintf("https://%s/blob/master/go.mod", repoName)
+		} else {
+			uri = flag.Arg(0)
+		}
 
 		var err error
 		if strings.HasPrefix(uri, "https://") || strings.HasPrefix(uri, "http://") {
