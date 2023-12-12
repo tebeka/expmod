@@ -9,6 +9,8 @@ Prints GitHub project description for every direct dependency on GitHub in go.mo
 ```
 usage: expmod [options] [file or URL]
 Options:
+  -repo string
+    	GitHub repository name
   -timeout duration
     	HTTP timeout (default 3s)
   -version
