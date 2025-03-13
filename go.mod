@@ -1,11 +1,11 @@
 module github.com/tebeka/expmod
 
-go 1.21
+go 1.24
 
 require (
-	github.com/stretchr/testify v1.8.4
-	golang.org/x/mod v0.14.0
-	golang.org/x/net v0.23.0
+	github.com/stretchr/testify v1.10.0
+	golang.org/x/mod v0.24.0
+	golang.org/x/net v0.37.0
 )
 
 require (
