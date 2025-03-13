@@ -39,7 +39,7 @@ If %s is found in the environment, it will be use to access GitHub API.
 func main() {
 	exe := path.Base(os.Args[0])
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
-	flag.DurationVar(&httpTimeout, "timeout", 3*time.Second, "HTTP timeout")
+	flag.DurationVar(&httpTimeout, "timeout", 30*time.Second, "HTTP timeout")
 	flag.StringVar(&repoName, "repo", "", "GitHub repository name")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [file or URL]\nOptions:\n", exe)
@@ -130,7 +130,8 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 
 			pkg, err = proxyRepo(ctx, pkg)
 			if err != nil {
-				// TODO: log?
+				desc := fmt.Sprintf("error: %s", err)
+				displayInfo(pkgName, require.Mod.Version, desc)
 				continue
 			}
 		}
@@ -153,10 +154,14 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 			cache[key] = desc
 		}
 
-		fmt.Printf("%s %s:\n\t%s\n", pkgName, require.Mod.Version, desc)
+		displayInfo(pkgName, require.Mod.Version, desc)
 	}
 
 	return nil
+}
+
+func displayInfo(pkg, version, desc string) {
+	fmt.Printf("%s %s:\n\t%s\n", pkg, version, desc)
 }
 
 func repoDesc(owner, repo string) (string, error) {

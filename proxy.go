@@ -27,7 +27,12 @@ func proxyRepo(ctx context.Context, dep string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	return parseProxyHTML(resp.Body)
+	repo, err := parseProxyHTML(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("%w in %q", err, url)
+	}
+
+	return repo, nil
 }
 
 /*
