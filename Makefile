@@ -10,8 +10,7 @@ test: lint
 	go test -v
 
 install-tools:
-	curl -L https://github.com/securego/gosec/releases/download/v2.18.2/gosec_2.18.2_linux_amd64.tar.gz | \
-		tar xz -C $(shell go env GOPATH)/bin gosec
+	curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.22.2
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	go install honnef.co/go/tools/cmd/staticcheck@latest
 	go install github.com/caarlos0/svu@latest
