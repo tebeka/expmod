@@ -7,6 +7,13 @@ require (
 	golang.org/x/net v0.43.0
 )
 
+tool (
+	github.com/caarlos0/svu
+	github.com/securego/gosec/v2/cmd/gosec
+	golang.org/x/vuln/cmd/govulncheck
+	honnef.co/go/tools/cmd/staticcheck
+)
+
 require (
 	cloud.google.com/go v0.121.2 // indirect
 	cloud.google.com/go/ai v0.12.1 // indirect
@@ -59,11 +66,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/tools v0.6.1 // indirect
 )
-
-tool github.com/caarlos0/svu
-
-tool github.com/securego/gosec/v2/cmd/gosec
-
-tool golang.org/x/vuln/cmd/govulncheck
-
-tool honnef.co/go/tools/cmd/staticcheck
