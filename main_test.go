@@ -8,10 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 )
 
 var infoCases = []struct {
@@ -40,8 +39,12 @@ func Test_repoInfo(t *testing.T) {
 	for _, tc := range infoCases {
 		t.Run(tc.line, func(t *testing.T) {
 			owner, repo := repoInfo(tc.line)
-			require.Equal(t, tc.owner, owner, "owner")
-			require.Equal(t, tc.repo, repo, "repo")
+			if owner != tc.owner {
+				t.Fatalf("owner: expected %q, got %q", tc.owner, owner)
+			}
+			if repo != tc.repo {
+				t.Fatalf("repo: expected %q, got %q", tc.repo, repo)
+			}
 		})
 	}
 
@@ -56,8 +59,12 @@ func Test_repoDesc(t *testing.T) {
 	expected := "Simple error handling primitives" // FIXME: brittle
 
 	desc, err := repoDesc(owner, repo)
-	require.NoError(t, err, "API")
-	require.Equal(t, expected, desc, "description")
+	if err != nil {
+		t.Fatalf("API: %v", err)
+	}
+	if desc != expected {
+		t.Fatalf("description: expected %q, got %q", expected, desc)
+	}
 }
 
 func testCtx(t *testing.T) (context.Context, context.CancelFunc) {
@@ -75,7 +82,9 @@ func build(t *testing.T) string {
 	defer cancel()
 
 	err := exec.CommandContext(ctx, "go", "build", "-o", exe).Run()
-	require.NoError(t, err, "build")
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
 	return exe
 }
 
@@ -111,8 +120,12 @@ func TestExe(t *testing.T) {
 			cmd.Stdout = &buf
 			err := cmd.Run()
 
-			require.NoError(t, err, "run")
-			require.Equal(t, exeExpected, buf.String())
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			if buf.String() != exeExpected {
+				t.Fatalf("expected %q, got %q", exeExpected, buf.String())
+			}
 		})
 	}
 }
@@ -124,7 +137,9 @@ func TestExeStdin(t *testing.T) {
 	defer cancel()
 
 	file, err := os.Open(testMod)
-	require.NoError(t, err, "open mod")
+	if err != nil {
+		t.Fatalf("open mod: %v", err)
+	}
 	defer file.Close()
 
 	var buf bytes.Buffer
@@ -133,8 +148,12 @@ func TestExeStdin(t *testing.T) {
 	cmd.Stdout = &buf
 
 	err = cmd.Run()
-	require.NoError(t, err, "run")
-	require.Equal(t, exeExpected, buf.String())
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if buf.String() != exeExpected {
+		t.Fatalf("expected %q, got %q", exeExpected, buf.String())
+	}
 }
 
 var flagCases = []struct {
@@ -155,8 +174,12 @@ func TestExeFlags(t *testing.T) {
 
 			cmd := exec.CommandContext(ctx, exe, tc.flag)
 			out, err := cmd.CombinedOutput()
-			require.NoError(t, err, "run")
-			require.Contains(t, string(out), tc.fragment)
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			if !strings.Contains(string(out), tc.fragment) {
+				t.Fatalf("expected output to contain %q, got %q", tc.fragment, string(out))
+			}
 		})
 	}
 }
@@ -187,7 +210,9 @@ func TestGHToken(t *testing.T) {
 	})
 
 	repoDesc("tebeka", "expmod")
-	require.Equal(t, token, mt.token)
+	if mt.token != token {
+		t.Fatalf("expected token %q, got %q", token, mt.token)
+	}
 }
 
 func Test_githubRawURL(t *testing.T) {
@@ -196,6 +221,10 @@ func Test_githubRawURL(t *testing.T) {
 	expected := "https://raw.githubusercontent.com/nxadm/tail/master/go.mod"
 
 	out, err := githubRawURL(url)
-	require.NoError(t, err)
-	require.Equal(t, expected, out)
+	if err != nil {
+		t.Fatalf("githubRawURL: %v", err)
+	}
+	if out != expected {
+		t.Fatalf("expected %q, got %q", expected, out)
+	}
 }

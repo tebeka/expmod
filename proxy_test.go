@@ -3,8 +3,6 @@ package main
 import (
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 var htmlCases = []struct {
@@ -20,12 +18,18 @@ func Test_parseProxyHTML(t *testing.T) {
 	for _, tc := range htmlCases {
 		t.Run(tc.file, func(t *testing.T) {
 			file, err := os.Open(tc.file)
-			require.NoError(t, err, "open")
+			if err != nil {
+				t.Fatalf("open: %v", err)
+			}
 			defer file.Close()
 
 			repo, err := parseProxyHTML(file)
-			require.NoError(t, err, "parse HTML")
-			require.Equal(t, tc.repo, repo)
+			if err != nil {
+				t.Fatalf("parse HTML: %v", err)
+			}
+			if repo != tc.repo {
+				t.Fatalf("expected %q, got %q", tc.repo, repo)
+			}
 		})
 	}
 }
@@ -39,6 +43,11 @@ func Test_proxyRepo(t *testing.T) {
 	ctx, cancel := testCtx(t)
 	defer cancel()
 	repo, err := proxyRepo(ctx, pkg)
-	require.NoError(t, err)
-	require.Equal(t, "github.com/go-yaml/yaml", repo)
+	if err != nil {
+		t.Fatalf("proxyRepo: %v", err)
+	}
+	expected := "github.com/go-yaml/yaml"
+	if repo != expected {
+		t.Fatalf("expected %q, got %q", expected, repo)
+	}
 }
