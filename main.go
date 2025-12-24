@@ -20,7 +20,8 @@ import (
 )
 
 var (
-	version, commit = "???", "???"
+	version = "???"
+	commit  = "???"
 
 	showVersion bool
 	httpTimeout time.Duration

@@ -19,9 +19,21 @@ install-tools:
 ci: install-tools test
 
 release-patch:
-	git tag $(shell go tool svu patch)
-	git push --tags
+	$(eval NEW_VERSION := $(shell go tool svu patch))
+	$(eval COMMIT := $(shell git rev-parse --short HEAD))
+	go run bump_version.go -version $(NEW_VERSION) -commit $(COMMIT) < main.go > main.go.tmp && mv main.go.tmp main.go
+	go fmt main.go
+	git add main.go
+	git commit -m "Bump version to $(NEW_VERSION)"
+	git tag $(NEW_VERSION)
+	git push && git push --tags
 
 release-minor:
-	git tag $(shell go tool svu minor)
-	git push --tags
+	$(eval NEW_VERSION := $(shell go tool svu minor))
+	$(eval COMMIT := $(shell git rev-parse --short HEAD))
+	go run bump_version.go -version $(NEW_VERSION) -commit $(COMMIT) < main.go > main.go.tmp && mv main.go.tmp main.go
+	go fmt main.go
+	git add main.go
+	git commit -m "Bump version to $(NEW_VERSION)"
+	git tag $(NEW_VERSION)
+	git push && git push --tags
