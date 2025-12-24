@@ -58,21 +58,28 @@ func parseProxyHTML(r io.Reader) (string, error) {
 		return "", err
 	}
 
-	pred := func(n *html.Node) bool { return n.Data == "meta" && attr(n, "name") == "go-source" }
-	node := findNode(doc, pred)
-	if node == nil {
-		return "", fmt.Errorf("can't find go-source meta")
+	// Check go-source first
+	names := []string{"go-source", "go-import"}
+	for _, name := range names {
+
+		pred := func(n *html.Node) bool { return n.Data == "meta" && attr(n, "name") == name }
+		node := findNode(doc, pred)
+		if node == nil {
+			continue
+		}
+
+		src := attr(node, "content")
+		if src == "" {
+			return "", fmt.Errorf("can't find content in meta")
+		}
+
+		matches := ghRE.FindStringSubmatch(src)
+		if len(matches) == 0 {
+			return "", fmt.Errorf("can't find github repo in meta")
+		}
+
+		return strings.TrimSpace(matches[1]), nil
 	}
 
-	src := attr(node, "content")
-	if src == "" {
-		return "", fmt.Errorf("can't find content in meta")
-	}
-
-	matches := ghRE.FindStringSubmatch(src)
-	if len(matches) == 0 {
-		return "", fmt.Errorf("can't find github repo in meta")
-	}
-
-	return strings.TrimSpace(matches[1]), nil
+	return "", fmt.Errorf("non of %s found in metadata", strings.Join(names, ", "))
 }
