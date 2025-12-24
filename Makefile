@@ -1,3 +1,5 @@
+.PHONY: all lint test install-tools ci release release-patch release-minor
+
 all:
 	$(error please pick a target)
 
@@ -18,22 +20,23 @@ install-tools:
 
 ci: install-tools test
 
-release-patch:
-	$(eval NEW_VERSION := $(shell go tool svu patch))
+# Usage: make release TYPE=patch  (or TYPE=minor)
+release:
+	@test -n "$(TYPE)" || (echo "error: TYPE required (patch or minor)" && exit 1)
+	$(eval NEW_VERSION := $(shell go tool svu $(TYPE)))
 	$(eval COMMIT := $(shell git rev-parse --short HEAD))
-	go run bump_version.go -version $(NEW_VERSION) -commit $(COMMIT) < main.go > main.go.tmp && mv main.go.tmp main.go
+	@echo "Releasing $(NEW_VERSION)..."
+	go run bump_version.go -version $(NEW_VERSION) -commit $(COMMIT) < main.go > main.go.tmp
+	mv main.go.tmp main.go
 	go fmt main.go
 	git add main.go
 	git commit -m "Bump version to $(NEW_VERSION)"
 	git tag $(NEW_VERSION)
-	git push && git push --tags
+	git push
+	git push --tags
+
+release-patch:
+	$(MAKE) release TYPE=patch
 
 release-minor:
-	$(eval NEW_VERSION := $(shell go tool svu minor))
-	$(eval COMMIT := $(shell git rev-parse --short HEAD))
-	go run bump_version.go -version $(NEW_VERSION) -commit $(COMMIT) < main.go > main.go.tmp && mv main.go.tmp main.go
-	go fmt main.go
-	git add main.go
-	git commit -m "Bump version to $(NEW_VERSION)"
-	git tag $(NEW_VERSION)
-	git push && git push --tags
+	$(MAKE) release TYPE=minor
