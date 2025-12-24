@@ -28,12 +28,10 @@ func main() {
 	for s.Scan() {
 		line := s.Text()
 
-		// Replace version line
 		if versionRe.MatchString(line) {
 			line = versionRe.ReplaceAllString(line, fmt.Sprintf(`${1}"%s"`, version))
 		}
 
-		// Replace commit line
 		if commitRe.MatchString(line) {
 			line = commitRe.ReplaceAllString(line, fmt.Sprintf(`${1}"%s"`, commit))
 		}
