@@ -49,7 +49,9 @@ go get gopkg.in/yaml.v3
 */
 
 // gopkg.in/yaml.v3 _ https://github.com/go-yaml/yaml/tree/v3.0.1{/dir} https://github.com/go-yaml/yaml/blob/v3.0.1{/dir}/{file}#L{line} -> https://github.com/go-yaml/yaml
-var ghRE = regexp.MustCompile(`https://(github.com/[^/]+/[^/ ]+)`)
+// golang.org/x/term -> go.googlesource.com/term -> https://github.com/golang/go
+var ghRE = regexp.MustCompile(`https://(github\.com/[^/]+/[^/{}]+)`)  // Use github\.com to match literal dot, [^/{}]+ to stop at /, {, or }
+var goGooglesourceRE = regexp.MustCompile(`https://go\.googlesource\.com/(\w+)`)
 
 // parseProxyHTML finds github repo in proxy HTML.
 func parseProxyHTML(r io.Reader) (string, error) {
@@ -73,12 +75,18 @@ func parseProxyHTML(r io.Reader) (string, error) {
 			return "", fmt.Errorf("can't find content in meta")
 		}
 
+		// Try GitHub first
 		matches := ghRE.FindStringSubmatch(src)
-		if len(matches) == 0 {
-			return "", fmt.Errorf("can't find github repo in meta")
+		if len(matches) > 0 {
+			return strings.TrimSpace(matches[1]), nil
 		}
 
-		return strings.TrimSpace(matches[1]), nil
+		// Handle golang.org/x modules (go.googlesource.com/{name} -> github.com/golang/{name})
+		if matches := goGooglesourceRE.FindStringSubmatch(src); len(matches) > 0 {
+			return fmt.Sprintf("github.com/golang/%s", matches[1]), nil
+		}
+
+		return "", fmt.Errorf("can't find github repo in meta")
 	}
 
 	return "", fmt.Errorf("non of %s found in metadata", strings.Join(names, ", "))
