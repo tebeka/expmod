@@ -162,6 +162,7 @@ var flagCases = []struct {
 }{
 	{"-version", "version"},
 	{"-help", "usage"},
+	{"-clear-cache", "cache cleared"},
 }
 
 func TestExeFlags(t *testing.T) {
@@ -224,7 +225,55 @@ func Test_githubRawURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("githubRawURL: %v", err)
 	}
+
 	if out != expected {
 		t.Fatalf("expected %q, got %q", expected, out)
+	}
+}
+
+func TestClearCache(t *testing.T) {
+	exe := build(t)
+	tmpDir := t.TempDir()
+	cacheFile := path.Join(tmpDir, "cache.gob")
+
+	// Set cache location
+	t.Setenv("EXPMOD_CACHE", cacheFile)
+
+	// Create a cache file with some data using saveCache
+	cache := map[string]string{"golang/go": "The Go programming language"}
+	if err := saveCache(cache); err != nil {
+		t.Fatalf("saveCache: %v", err)
+	}
+
+	// Verify cache file exists and contains data
+	if _, err := os.Stat(cacheFile); err != nil {
+		t.Fatalf("cache file not created: %v", err)
+	}
+
+	// Run with --clear-cache
+	ctx, cancel := testCtx(t)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, exe, "-clear-cache")
+	cmd.Env = append(os.Environ(), "EXPMOD_CACHE="+cacheFile)
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		t.Fatalf("run with --clear-cache: %v", err)
+	}
+
+	// Verify output
+	if !strings.Contains(string(out), "cache cleared") {
+		t.Fatalf("expected output to contain 'cache cleared', got %q", string(out))
+	}
+
+	// Verify cache file still exists but is now empty using loadCache
+	loadedCache, err := loadCache()
+	if err != nil {
+		t.Fatalf("loadCache: %v", err)
+	}
+
+	if len(loadedCache) != 0 {
+		t.Fatalf("expected empty cache, got %v", loadedCache)
 	}
 }

@@ -24,6 +24,7 @@ var (
 	commit  = "5ba88e0"
 
 	showVersion bool
+	clearCache  bool
 	httpTimeout time.Duration
 	repoName    string
 )
@@ -40,6 +41,7 @@ If %s is found in the environment, it will be use to access GitHub API.
 func main() {
 	exe := path.Base(os.Args[0])
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
+	flag.BoolVar(&clearCache, "clear-cache", false, "clear the cache and exit")
 	flag.DurationVar(&httpTimeout, "timeout", 30*time.Second, "HTTP timeout")
 	flag.StringVar(&repoName, "repo", "", "GitHub repository name")
 	flag.Usage = func() {
@@ -51,6 +53,16 @@ func main() {
 
 	if showVersion {
 		fmt.Printf("%s version %s (commit %s)\n", exe, version, commit)
+		os.Exit(0)
+	}
+
+	if clearCache {
+		if err := saveCache(make(map[string]string)); err != nil {
+			fmt.Fprintf(os.Stderr, "error: can't clear cache - %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("cache cleared")
 		os.Exit(0)
 	}
 
