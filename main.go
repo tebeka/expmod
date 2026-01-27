@@ -13,9 +13,11 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"golang.org/x/mod/modfile"
 )
 
@@ -129,6 +131,10 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 		return err
 	}
 
+	sort.Slice(f.Require, func(i, j int) bool {
+		return f.Require[i].Mod.Path < f.Require[j].Mod.Path
+	})
+
 	for _, require := range f.Require {
 		if require.Indirect {
 			continue
@@ -173,8 +179,20 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 	return nil
 }
 
+var (
+	pkgFormat string
+)
+
+func init() {
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		pkgFormat = "\033[1m%s\033[0m \033[3m%s\033[0m:\n\t%s\n"
+	} else {
+		pkgFormat = "%s %s:\n\t%s\n"
+	}
+}
+
 func displayInfo(pkg, version, desc string) {
-	fmt.Printf("%s %s:\n\t%s\n", pkg, version, desc)
+	fmt.Printf(pkgFormat, pkg, version, desc)
 }
 
 func repoDesc(owner, repo string) (string, error) {

@@ -277,3 +277,37 @@ func TestClearCache(t *testing.T) {
 		t.Fatalf("expected empty cache, got %v", loadedCache)
 	}
 }
+
+func TestPackagesSorted(t *testing.T) {
+	exe := build(t)
+
+	ctx, cancel := testCtx(t)
+	defer cancel()
+
+	var buf bytes.Buffer
+	cmd := exec.CommandContext(ctx, exe, "testdata/unsorted.mod")
+	cmd.Stdout = &buf
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	output := buf.String()
+
+	// Find positions of packages in output
+	fuzzyPos := strings.Index(output, "github.com/sahilm/fuzzy")
+	testifyPos := strings.Index(output, "github.com/stretchr/testify")
+
+	if fuzzyPos == -1 {
+		t.Fatalf("expected to find github.com/sahilm/fuzzy in output: %s", output)
+	}
+
+	if testifyPos == -1 {
+		t.Fatalf("expected to find github.com/stretchr/testify in output: %s", output)
+	}
+
+	if fuzzyPos >= testifyPos {
+		t.Fatalf("packages not in alphabetical order. fuzzy at %d, testify at %d. output:\n%s", fuzzyPos, testifyPos, output)
+	}
+}

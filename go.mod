@@ -37,6 +37,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/gookit/color v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/openai/openai-go/v3 v3.8.1 // indirect
 	github.com/securego/gosec/v2 v2.22.11 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
@@ -53,7 +54,7 @@ require (
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/telemetry v0.0.0-20251111182119-bc8e575c7b54 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
