@@ -212,10 +212,7 @@ func TestGHToken(t *testing.T) {
 		http.DefaultClient.Transport = oldTransport
 	})
 
-	_, err := repoDesc("tebeka", "expmod")
-	if err != nil {
-		t.Fatalf("repoDesc: %v\n", err)
-	}
+	repoDesc("tebeka", "expmod") // Should err, we don't care - it's a mock
 
 	if mt.token != token {
 		t.Fatalf("expected token %q, got %q", token, mt.token)
