@@ -62,6 +62,7 @@ func Test_repoDesc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("API: %v", err)
 	}
+
 	if desc != expected {
 		t.Fatalf("description: expected %q, got %q", expected, desc)
 	}
@@ -123,6 +124,7 @@ func TestExe(t *testing.T) {
 			if err != nil {
 				t.Fatalf("run: %v", err)
 			}
+
 			if buf.String() != exeExpected {
 				t.Fatalf("expected %q, got %q", exeExpected, buf.String())
 			}
@@ -210,7 +212,11 @@ func TestGHToken(t *testing.T) {
 		http.DefaultClient.Transport = oldTransport
 	})
 
-	repoDesc("tebeka", "expmod")
+	_, err := repoDesc("tebeka", "expmod")
+	if err != nil {
+		t.Fatalf("repoDesc: %v\n", err)
+	}
+
 	if mt.token != token {
 		t.Fatalf("expected token %q, got %q", token, mt.token)
 	}
