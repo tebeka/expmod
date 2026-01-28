@@ -10,6 +10,7 @@ tool (
 )
 
 require (
+	github.com/mattn/go-isatty v0.0.20
 	golang.org/x/mod v0.30.0
 	golang.org/x/net v0.47.0
 )
@@ -37,7 +38,6 @@ require (
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/gookit/color v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/openai/openai-go/v3 v3.8.1 // indirect
 	github.com/securego/gosec/v2 v2.22.11 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
