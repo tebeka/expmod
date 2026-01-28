@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	version = "v0.8.2"
-	commit  = "e8f15c7"
+	version = "v0.8.3"
+	commit  = "170a30b"
 
 	showVersion bool
 	clearCache  bool
