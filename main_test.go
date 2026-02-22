@@ -58,13 +58,35 @@ func Test_repoDesc(t *testing.T) {
 	owner, repo := "pkg", "errors"
 	expected := "Simple error handling primitives" // FIXME: brittle
 
-	desc, err := repoDesc(owner, repo)
+	ctx, cancel := testCtx(t)
+	defer cancel()
+
+	desc, err := repoDesc(ctx, owner, repo)
 	if err != nil {
 		t.Fatalf("API: %v", err)
 	}
 
 	if desc != expected {
 		t.Fatalf("description: expected %q, got %q", expected, desc)
+	}
+}
+
+func Test_repoDescFallbackToReadme(t *testing.T) {
+	if os.Getenv("CI") != "" {
+		t.Skip("In CI")
+	}
+
+	// bmizerany/pat has no GitHub description, so we fall back to README
+	owner, repo := "bmizerany", "pat"
+	ctx, cancel := testCtx(t)
+	defer cancel()
+
+	desc, err := repoDesc(ctx, owner, repo)
+	if err != nil {
+		t.Fatalf("repoDesc: %v", err)
+	}
+	if desc == "" {
+		t.Fatal("expected non-empty description from README fallback")
 	}
 }
 
@@ -212,7 +234,9 @@ func TestGHToken(t *testing.T) {
 		http.DefaultClient.Transport = oldTransport
 	})
 
-	repoDesc("tebeka", "expmod") // Should err, we don't care - it's a mock
+	ctx, cancel := testCtx(t)
+	defer cancel()
+	repoDesc(ctx, "tebeka", "expmod") // Should err, we don't care - it's a mock
 
 	if mt.token != token {
 		t.Fatalf("expected token %q, got %q", token, mt.token)

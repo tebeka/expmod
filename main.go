@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -164,8 +165,10 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 		key := fmt.Sprintf("%s/%s", owner, repo)
 		desc, ok := cache[key]
 		if !ok {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
 			var err error
-			desc, err = repoDesc(owner, repo)
+			desc, err = repoDesc(ctx, owner, repo)
 			if err != nil {
 				slog.Error("can't get description", "package", pkgName, "repo", pkg, "error", err)
 				continue
@@ -195,10 +198,7 @@ func displayInfo(pkg, version, desc string) {
 	fmt.Printf(pkgFormat, pkg, version, desc)
 }
 
-func repoDesc(owner, repo string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
+func repoDesc(ctx context.Context, owner, repo string) (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", url.PathEscape(owner), url.PathEscape(repo))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -227,7 +227,50 @@ func repoDesc(owner, repo string) (string, error) {
 		return "", fmt.Errorf("%q: can't decode JSON - %w", url, err)
 	}
 
-	return reply.Description, nil
+	if reply.Description != "" {
+		return reply.Description, nil
+	}
+
+	desc, err := readmeDesc(ctx, owner, repo)
+	if err != nil {
+		slog.Debug("can't get README description", "owner", owner, "repo", repo, "error", err)
+		return "", nil
+	}
+	return desc, nil
+}
+
+func readmeDesc(ctx context.Context, owner, repo string) (string, error) {
+	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/HEAD/README.md",
+		url.PathEscape(owner), url.PathEscape(repo))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", err
+	}
+
+	token := os.Getenv(tokenKey)
+	if token != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("%q: %s", rawURL, resp.Status)
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "#") {
+			return strings.TrimSpace(strings.TrimLeft(line, "#")), nil
+		}
+	}
+
+	return "", fmt.Errorf("no header found in README")
 }
 
 // repoInfo extract repository information from line.
@@ -282,6 +325,10 @@ func openURL(url string) (io.ReadCloser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%q: bad URL- %w", url, err)
+	}
+
+	if token := os.Getenv(tokenKey); token != "" && strings.Contains(url, "github.com") {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
 	resp, err := http.DefaultClient.Do(req)
