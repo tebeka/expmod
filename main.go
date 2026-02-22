@@ -33,7 +33,7 @@ var (
 )
 
 const (
-	tokenKey = "GITHUB_TOKEN" // #nosec G101
+	tokenKey = "GITHUB_TOKEN" // #nosec G704 G101
 )
 
 var extraHelp = `
@@ -210,7 +210,7 @@ func repoDesc(ctx context.Context, owner, repo string) (string, error) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //#nosec G704
 	if err != nil {
 		return "", err
 	}
@@ -252,7 +252,7 @@ func readmeDesc(ctx context.Context, owner, repo string) (string, error) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //#nosec G704
 	if err != nil {
 		return "", err
 	}
@@ -331,7 +331,7 @@ func openURL(url string) (io.ReadCloser, error) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //#nosec G704
 	if err != nil {
 		return nil, fmt.Errorf("%q: can't get- %w", url, err)
 	}

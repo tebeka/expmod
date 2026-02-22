@@ -18,7 +18,7 @@ func proxyRepo(ctx context.Context, dep string) (string, error) {
 		return "", err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //#nosec G704
 	if err != nil {
 		return "", fmt.Errorf("GET %q - %w", url, err)
 	}
@@ -50,7 +50,7 @@ go get gopkg.in/yaml.v3
 
 // gopkg.in/yaml.v3 _ https://github.com/go-yaml/yaml/tree/v3.0.1{/dir} https://github.com/go-yaml/yaml/blob/v3.0.1{/dir}/{file}#L{line} -> https://github.com/go-yaml/yaml
 // golang.org/x/term -> go.googlesource.com/term -> https://github.com/golang/go
-var ghRE = regexp.MustCompile(`https://(github\.com/[^\s/{}]+/[^\s/{}]+)`)  // Use github\.com to match literal dot, [^\s/{}]+ to stop at whitespace, /, {, or }
+var ghRE = regexp.MustCompile(`https://(github\.com/[^\s/{}]+/[^\s/{}]+)`) // Use github\.com to match literal dot, [^\s/{}]+ to stop at whitespace, /, {, or }
 var goGooglesourceRE = regexp.MustCompile(`https://go\.googlesource\.com/(\w+)`)
 
 // parseProxyHTML finds github repo in proxy HTML.
