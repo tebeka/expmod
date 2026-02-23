@@ -28,9 +28,28 @@ var (
 
 	showVersion bool
 	clearCache  bool
-	httpTimeout time.Duration
+	httpTimeout = 30 * time.Second
 	repoName    string
+	serveAddr   string
 )
+
+// PkgInfo holds the info for a single dependency.
+type PkgInfo struct {
+	Name    string
+	Version string
+	Desc    string
+	URL     string
+}
+
+type repoCache interface {
+	Get(key string) (string, bool)
+	Set(key, value string)
+}
+
+type mapCache struct{ m map[string]string }
+
+func (c mapCache) Get(key string) (string, bool) { v, ok := c.m[key]; return v, ok }
+func (c mapCache) Set(key, value string)         { c.m[key] = value }
 
 const (
 	tokenKey = "GITHUB_TOKEN" // #nosec G704 G101
@@ -45,8 +64,9 @@ func main() {
 	exe := path.Base(os.Args[0])
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
 	flag.BoolVar(&clearCache, "clear-cache", false, "clear the cache and exit")
-	flag.DurationVar(&httpTimeout, "timeout", 30*time.Second, "HTTP timeout")
+	flag.DurationVar(&httpTimeout, "timeout", httpTimeout, "HTTP timeout")
 	flag.StringVar(&repoName, "repo", "", "GitHub repository name")
+	flag.StringVar(&serveAddr, "serve", "", "start web server on host:port")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s [options] [file or URL]\nOptions:\n", exe)
 		flag.PrintDefaults()
@@ -57,6 +77,11 @@ func main() {
 	if showVersion {
 		fmt.Printf("%s version %s (commit %s)\n", exe, version, commit)
 		os.Exit(0)
+	}
+
+	if serveAddr != "" {
+		serve(serveAddr)
+		return
 	}
 
 	if clearCache {
@@ -110,9 +135,13 @@ func main() {
 		cache = make(map[string]string)
 	}
 
-	if err := pkgsInfo(r, cache); err != nil {
-		fmt.Fprintf(os.Stderr, "error: too many arguments\n")
+	pkgs, err := pkgsInfo(r, mapCache{m: cache})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
+	}
+	for _, p := range pkgs {
+		displayInfo(p.Name, p.Version, p.Desc)
 	}
 
 	if err := saveCache(cache); err != nil {
@@ -120,22 +149,23 @@ func main() {
 	}
 }
 
-func pkgsInfo(r io.Reader, cache map[string]string) error {
+func pkgsInfo(r io.Reader, cache repoCache) ([]PkgInfo, error) {
 	const maxSize = 16 * (1 << 20) // go.mod files are limited to 16 MiB
 	data, err := io.ReadAll(io.LimitReader(r, maxSize))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	f, err := modfile.ParseLax("go.mod", data, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sort.Slice(f.Require, func(i, j int) bool {
 		return f.Require[i].Mod.Path < f.Require[j].Mod.Path
 	})
 
+	var infos []PkgInfo
 	for _, require := range f.Require {
 		if require.Indirect {
 			continue
@@ -150,8 +180,7 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 
 			pkg, err = proxyRepo(ctx, pkg)
 			if err != nil {
-				desc := fmt.Sprintf("error: %s", err)
-				displayInfo(pkgName, require.Mod.Version, desc)
+				infos = append(infos, PkgInfo{Name: pkgName, Version: require.Mod.Version, Desc: fmt.Sprintf("error: %s", err)})
 				continue
 			}
 		}
@@ -163,7 +192,7 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 		}
 
 		key := fmt.Sprintf("%s/%s", owner, repo)
-		desc, ok := cache[key]
+		desc, ok := cache.Get(key)
 		if !ok {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
@@ -173,13 +202,13 @@ func pkgsInfo(r io.Reader, cache map[string]string) error {
 				slog.Error("can't get description", "package", pkgName, "repo", pkg, "error", err)
 				continue
 			}
-			cache[key] = desc
+			cache.Set(key, desc)
 		}
 
-		displayInfo(pkgName, require.Mod.Version, desc)
+		infos = append(infos, PkgInfo{Name: pkgName, Version: require.Mod.Version, Desc: desc, URL: fmt.Sprintf("https://github.com/%s/%s", owner, repo)})
 	}
 
-	return nil
+	return infos, nil
 }
 
 var (

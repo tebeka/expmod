@@ -10,6 +10,7 @@ tool (
 )
 
 require (
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/mattn/go-isatty v0.0.20
 	golang.org/x/mod v0.32.0
 	golang.org/x/net v0.49.0

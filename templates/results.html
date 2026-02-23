@@ -1,0 +1,16 @@
+{{if .}}<table>
+  <thead>
+    <tr><th>Package</th><th>Version</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    {{range .}}
+    <tr>
+      <td>{{if .URL}}<a href="{{.URL}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
+      <td>{{.Version}}</td>
+      <td>{{.Desc}}</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}<p>No direct dependencies found.</p>
+{{end}}

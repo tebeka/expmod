@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>expmod</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { margin-bottom: 0.25rem; }
+    .subtitle { color: #666; margin-top: 0; margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.25rem; font-weight: bold; }
+    input[type=text], textarea { width: 100%; box-sizing: border-box; padding: 0.5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; }
+    textarea { font-family: monospace; }
+    .sep { text-align: center; margin: 0.75rem 0; color: #888; }
+    button { margin-top: 0.75rem; padding: 0.5rem 1.5rem; font-size: 1rem; cursor: pointer; }
+    .htmx-indicator { display: none; margin-left: 0.75rem; color: #666; vertical-align: middle; }
+    .htmx-request.htmx-indicator { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .spinner { width: 1em; height: 1em; border: 2px solid #ccc; border-top-color: #555; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #results { margin-top: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #ddd; }
+    th { background: #f5f5f5; }
+    td:first-child { font-family: monospace; white-space: nowrap; }
+    td:nth-child(2) { white-space: nowrap; color: #666; font-family: monospace; }
+    .error { color: #c00; }
+  </style>
+</head>
+<body>
+  <h1>expmod</h1>
+  <p class="subtitle">Describe Go module dependencies</p>
+  <form hx-post="/" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
+    <div>
+      <label for="repo">GitHub repo</label>
+      <input type="text" id="repo" name="repo" placeholder="owner/repo">
+    </div>
+    <p class="sep">— or paste go.mod —</p>
+    <div>
+      <label for="content">go.mod content</label>
+      <textarea id="content" name="content" rows="10" placeholder="module example&#10;&#10;require (&#10;  ...&#10;)"></textarea>
+    </div>
+    <button type="submit">Explore</button>
+    <span id="spinner" class="htmx-indicator"><span class="spinner"></span>Loading…</span>
+  </form>
+  <div id="results"></div>
+</body>
+</html>
