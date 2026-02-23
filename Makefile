@@ -1,4 +1,6 @@
-.PHONY: all lint test install-tools ci release release-patch release-minor
+.PHONY: all lint test install-tools ci release release-patch release-minor deploy
+
+GCP_REGION ?= us-central1
 
 all:
 	$(error please pick a target)
@@ -40,3 +42,10 @@ release-patch:
 
 release-minor:
 	$(MAKE) release TYPE=minor
+
+deploy:
+	gcloud run deploy expmod \
+		--source . \
+		--region $(GCP_REGION) \
+		--set-secrets GITHUB_TOKEN=github-token:latest \
+		--allow-unauthenticated
