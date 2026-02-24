@@ -292,6 +292,7 @@ func readmeDesc(ctx context.Context, owner, repo string) (string, error) {
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "#") {
@@ -299,6 +300,9 @@ func readmeDesc(ctx context.Context, owner, repo string) (string, error) {
 		}
 	}
 
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("read README: %w", err)
+	}
 	return "", fmt.Errorf("no header found in README")
 }
 
@@ -340,33 +344,46 @@ func githubRawURL(ghURL string) (string, error) {
 	return u.String(), nil
 }
 
-func openURL(url string) (io.ReadCloser, error) {
-	if strings.Contains(url, "github.com") {
+func openURL(rawURL string) (io.ReadCloser, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("%q: bad URL- %w", rawURL, err)
+	}
+
+	host := strings.ToLower(parsed.Hostname())
+	if host == "github.com" {
 		var err error
-		url, err = githubRawURL(url)
+		rawURL, err = githubRawURL(rawURL)
 		if err != nil {
-			return nil, fmt.Errorf("%q: bad URL- %w", url, err)
+			return nil, fmt.Errorf("%q: bad URL- %w", rawURL, err)
+		}
+		parsed, err = url.Parse(rawURL)
+		if err != nil {
+			return nil, fmt.Errorf("%q: bad URL- %w", rawURL, err)
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%q: bad URL- %w", url, err)
+		return nil, fmt.Errorf("%q: bad URL- %w", rawURL, err)
 	}
 
-	if token := os.Getenv(tokenKey); token != "" && strings.Contains(url, "github.com") {
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+	if token := os.Getenv(tokenKey); token != "" {
+		host = strings.ToLower(parsed.Hostname())
+		if host == "github.com" || host == "raw.githubusercontent.com" {
+			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+		}
 	}
 
 	resp, err := http.DefaultClient.Do(req) //#nosec G704
 	if err != nil {
-		return nil, fmt.Errorf("%q: can't get- %w", url, err)
+		return nil, fmt.Errorf("%q: can't get- %w", rawURL, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%q: bad status - %s", url, resp.Status)
+		return nil, fmt.Errorf("%q: bad status - %s", rawURL, resp.Status)
 	}
 
 	return resp.Body, nil

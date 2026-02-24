@@ -26,9 +26,13 @@ var (
 type lruCache struct{ c *lru.Cache[string, string] }
 
 func (c *lruCache) Get(key string) (string, bool) { return c.c.Get(key) }
-func (c *lruCache) Set(key, value string)          { c.c.Add(key, value) }
+func (c *lruCache) Set(key, value string)         { c.c.Add(key, value) }
 
 type server struct{ cache *lruCache }
+
+const maxFormBytes = 2 << 20
+
+var githubRawBase = "https://raw.githubusercontent.com"
 
 func newServer(cacheSize int) (*server, error) {
 	c, err := lru.New[string, string](cacheSize)
@@ -38,11 +42,18 @@ func newServer(cacheSize int) (*server, error) {
 	return &server{cache: &lruCache{c: c}}, nil
 }
 
-func (s *server) pkgsFromRequest(r *http.Request) ([]PkgInfo, error) {
+func (s *server) pkgsFromRequest(w http.ResponseWriter, r *http.Request) ([]PkgInfo, error) {
+	if r.Method == http.MethodPost {
+		r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
+		if err := r.ParseForm(); err != nil {
+			return nil, err
+		}
+	}
+
 	repo := r.FormValue("repo")
 	var rc io.ReadCloser
 	if repo != "" {
-		uri := fmt.Sprintf("https://github.com/%s/blob/main/go.mod", repo)
+		uri := fmt.Sprintf("%s/%s/HEAD/go.mod", githubRawBase, repo)
 		var err error
 		rc, err = openURL(uri)
 		if err != nil {
@@ -62,9 +73,11 @@ func (s *server) handlePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleHTMX(w http.ResponseWriter, r *http.Request) {
-	pkgs, err := s.pkgsFromRequest(r)
+	pkgs, err := s.pkgsFromRequest(w, r)
 	if err != nil {
-		fmt.Fprintf(w, `<p class="error">%s</p>`, template.HTMLEscapeString(err.Error()))
+		fmt.Fprint(w, `<p class="error">`)
+		template.HTMLEscape(w, []byte(err.Error()))
+		fmt.Fprint(w, `</p>`)
 		return
 	}
 	if err := resultsTmpl.Execute(w, pkgs); err != nil {
@@ -73,13 +86,15 @@ func (s *server) handleHTMX(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleAPI(w http.ResponseWriter, r *http.Request) {
-	pkgs, err := s.pkgsFromRequest(r)
+	pkgs, err := s.pkgsFromRequest(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pkgs)
+	if err := json.NewEncoder(w).Encode(pkgs); err != nil {
+		slog.Error("encode response", "error", err)
+	}
 }
 
 func serve(addr string) {
