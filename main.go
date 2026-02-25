@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -23,9 +24,6 @@ import (
 )
 
 var (
-	version = "v0.10.0"
-	commit  = "0f3bd0a"
-
 	showVersion bool
 	clearCache  bool
 	httpTimeout = 30 * time.Second
@@ -75,6 +73,7 @@ func main() {
 	flag.Parse()
 
 	if showVersion {
+		version, commit := buildVersion()
 		fmt.Printf("%s version %s (commit %s)\n", exe, version, commit)
 		os.Exit(0)
 	}
@@ -225,6 +224,35 @@ func init() {
 
 func displayInfo(pkg, version, desc string) {
 	fmt.Printf(pkgFormat, pkg, version, desc)
+}
+
+func buildVersion() (string, string) {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown", "unknown"
+	}
+
+	version := info.Main.Version
+	if version == "" || version == "(devel)" {
+		version = "devel"
+	}
+
+	var commit string
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" {
+			commit = s.Value
+			if len(commit) > 7 {
+				commit = commit[:7]
+			}
+			break
+		}
+	}
+
+	if commit == "" {
+		commit = "unknown"
+	}
+
+	return version, commit
 }
 
 func repoDesc(ctx context.Context, owner, repo string) (string, error) {

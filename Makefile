@@ -26,13 +26,7 @@ ci: install-tools test
 release:
 	@test -n "$(TYPE)" || (echo "error: TYPE required (patch or minor)" && exit 1)
 	$(eval NEW_VERSION := $(shell go tool svu $(TYPE)))
-	$(eval COMMIT := $(shell git rev-parse --short HEAD))
 	@echo "Releasing $(NEW_VERSION)..."
-	go run bump_version.go -version $(NEW_VERSION) -commit $(COMMIT) < main.go > main.go.tmp
-	mv main.go.tmp main.go
-	go fmt main.go
-	git add main.go
-	git commit -m "Bump version to $(NEW_VERSION)"
 	git tag $(NEW_VERSION)
 	git push
 	git push --tags
