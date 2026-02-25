@@ -73,8 +73,8 @@ func main() {
 	flag.Parse()
 
 	if showVersion {
-		version, commit := buildVersion()
-		fmt.Printf("%s version %s (commit %s)\n", exe, version, commit)
+		version := buildVersion()
+		fmt.Printf("%s version %s\n", exe, version)
 		os.Exit(0)
 	}
 
@@ -226,33 +226,18 @@ func displayInfo(pkg, version, desc string) {
 	fmt.Printf(pkgFormat, pkg, version, desc)
 }
 
-func buildVersion() (string, string) {
+func buildVersion() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return "unknown", "unknown"
+		return "dev"
 	}
 
 	version := info.Main.Version
 	if version == "" || version == "(devel)" {
-		version = "devel"
+		return "devel"
 	}
 
-	var commit string
-	for _, s := range info.Settings {
-		if s.Key == "vcs.revision" {
-			commit = s.Value
-			if len(commit) > 7 {
-				commit = commit[:7]
-			}
-			break
-		}
-	}
-
-	if commit == "" {
-		commit = "unknown"
-	}
-
-	return version, commit
+	return version
 }
 
 func repoDesc(ctx context.Context, owner, repo string) (string, error) {
