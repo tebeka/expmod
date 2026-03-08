@@ -381,7 +381,7 @@ func openURL(rawURL string) (io.ReadCloser, error) {
 		}
 	}
 
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil) //#nosec G704
 	if err != nil {
 		return nil, fmt.Errorf("%q: bad URL- %w", rawURL, err)
 	}

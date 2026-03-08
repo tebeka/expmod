@@ -11,4 +11,4 @@ jobs:
       with:
         go-version-file: go.mod
     - name: Test
-      run: make ci
+      run: make test

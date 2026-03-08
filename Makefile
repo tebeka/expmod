@@ -13,14 +13,7 @@ lint:
 test: lint
 	go test -v
 
-install-tools:
-	go install github.com/caarlos0/svu@latest
-	go install github.com/securego/gosec/v2/cmd/gosec@latest
-	go install golang.org/x/vuln/cmd/govulncheck@latest
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	@echo "Tools installed from go.mod tool directive"
-
-ci: install-tools test
+ci: test
 
 # Usage: make release TYPE=patch  (or TYPE=minor)
 release:

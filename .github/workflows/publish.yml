@@ -6,15 +6,27 @@ on:
       - 'v*'
  
 jobs:
-  goreleaser:
+  test:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - run: make test
+
+  goreleaser:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
       - name: Run GoReleaser
