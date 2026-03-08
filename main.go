@@ -375,10 +375,8 @@ func openURL(rawURL string) (io.ReadCloser, error) {
 			return nil, fmt.Errorf("%q: bad URL- %w", rawURL, err)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
-	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%q: bad URL- %w", rawURL, err)
 	}
@@ -390,7 +388,8 @@ func openURL(rawURL string) (io.ReadCloser, error) {
 		}
 	}
 
-	resp, err := http.DefaultClient.Do(req) //#nosec G704
+	client := &http.Client{Timeout: httpTimeout}
+	resp, err := client.Do(req) //#nosec G704
 	if err != nil {
 		return nil, fmt.Errorf("%q: can't get- %w", rawURL, err)
 	}
