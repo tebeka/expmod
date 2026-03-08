@@ -173,14 +173,19 @@ func pkgsInfo(r io.Reader, cache repoCache) ([]PkgInfo, error) {
 		pkg := require.Mod.Path
 		pkgName := pkg // for proxy
 		if !strings.HasPrefix(pkg, "github.com") {
-			var err error
-			ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
-			defer cancel()
+			if resolved, ok := cache.Get(pkgName); ok {
+				pkg = resolved
+			} else {
+				ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+				defer cancel()
 
-			pkg, err = proxyRepo(ctx, pkg)
-			if err != nil {
-				infos = append(infos, PkgInfo{Name: pkgName, Version: require.Mod.Version, Desc: fmt.Sprintf("error: %s", err)})
-				continue
+				var err error
+				pkg, err = proxyRepo(ctx, pkg)
+				if err != nil {
+					infos = append(infos, PkgInfo{Name: pkgName, Version: require.Mod.Version, Desc: fmt.Sprintf("error: %s", err)})
+					continue
+				}
+				cache.Set(pkgName, pkg)
 			}
 		}
 
