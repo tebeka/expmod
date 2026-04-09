@@ -4,17 +4,16 @@ import (
 	"encoding/gob"
 	"fmt"
 	"os"
-	"os/user"
-	"path"
+	"path/filepath"
 )
 
 func defaultCacheFile() (string, error) {
-	u, err := user.Current()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 
-	return path.Join(u.HomeDir, ".local", "cache", "expmod", "cache.gob"), nil
+	return filepath.Join(homeDir, ".local", "cache", "expmod", "cache.gob"), nil
 }
 
 const cacheEnvKey = "EXPMOD_CACHE"
@@ -53,7 +52,7 @@ func saveCache(cache map[string]string) error {
 		return err
 	}
 
-	if err := os.MkdirAll(path.Dir(fileName), 0750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fileName), 0750); err != nil {
 		return err
 	}
 

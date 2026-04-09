@@ -9,14 +9,18 @@ Prints GitHub project description for every direct dependency on GitHub in go.mo
 ```
 usage: expmod [options] [file or URL]
 Options:
+  -clear-cache
+    	clear the cache and exit
   -repo string
     	GitHub repository name
+  -serve string
+    	start web server on host:port
   -timeout duration
-    	HTTP timeout (default 3s)
+    	HTTP timeout (default 30s)
   -version
     	show version and exit
 
-If GITHUB_TOKEN is found in the environment, it will be use to access GitHub API.
+If GITHUB_TOKEN is found in the environment, it will be used to access GitHub API.
 "Human" GitHub URLs (e.g. https://github.com/tebeka/expmod/blob/main/go.mod) will be redirected to raw content.
 ```
 

@@ -29,6 +29,7 @@ var (
 	httpTimeout = 30 * time.Second
 	repoName    string
 	serveAddr   string
+	httpClient  = http.DefaultClient
 )
 
 // PkgInfo holds the info for a single dependency.
@@ -54,9 +55,11 @@ const (
 )
 
 var extraHelp = `
-If %s is found in the environment, it will be use to access GitHub API.
+If %s is found in the environment, it will be used to access GitHub API.
 "Human" GitHub URLs (e.g. https://github.com/tebeka/expmod/blob/main/go.mod) will be redirected to raw content.
 `
+
+var githubAPIBase = "https://api.github.com"
 
 func main() {
 	exe := path.Base(os.Args[0])
@@ -107,7 +110,7 @@ func main() {
 	if flag.NArg() == 1 || repoName != "" {
 		var uri string
 		if repoName != "" {
-			uri = fmt.Sprintf("https://%s/blob/master/go.mod", repoName)
+			uri = fmt.Sprintf("%s/%s/HEAD/go.mod", githubRawBase, repoName)
 		} else {
 			uri = flag.Arg(0)
 		}
@@ -177,10 +180,9 @@ func pkgsInfo(r io.Reader, cache repoCache) ([]PkgInfo, error) {
 				pkg = resolved
 			} else {
 				ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
-				defer cancel()
-
 				var err error
 				pkg, err = proxyRepo(ctx, pkg)
+				cancel()
 				if err != nil {
 					infos = append(infos, PkgInfo{Name: pkgName, Version: require.Mod.Version, Desc: fmt.Sprintf("error: %s", err)})
 					continue
@@ -199,9 +201,9 @@ func pkgsInfo(r io.Reader, cache repoCache) ([]PkgInfo, error) {
 		desc, ok := cache.Get(key)
 		if !ok {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
 			var err error
 			desc, err = repoDesc(ctx, owner, repo)
+			cancel()
 			if err != nil {
 				slog.Error("can't get description", "package", pkgName, "repo", pkg, "error", err)
 				continue
@@ -246,7 +248,7 @@ func buildVersion() string {
 }
 
 func repoDesc(ctx context.Context, owner, repo string) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", url.PathEscape(owner), url.PathEscape(repo))
+	url := fmt.Sprintf("%s/repos/%s/%s", githubAPIBase, url.PathEscape(owner), url.PathEscape(repo))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
@@ -257,10 +259,11 @@ func repoDesc(ctx context.Context, owner, repo string) (string, error) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	resp, err := http.DefaultClient.Do(req) //#nosec G704
+	resp, err := httpClient.Do(req) //#nosec G704
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("%q: %s", url, resp.Status)
@@ -287,7 +290,7 @@ func repoDesc(ctx context.Context, owner, repo string) (string, error) {
 }
 
 func readmeDesc(ctx context.Context, owner, repo string) (string, error) {
-	rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/HEAD/README.md",
+	rawURL := fmt.Sprintf("%s/%s/%s/HEAD/README.md", githubRawBase,
 		url.PathEscape(owner), url.PathEscape(repo))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -299,7 +302,7 @@ func readmeDesc(ctx context.Context, owner, repo string) (string, error) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	resp, err := http.DefaultClient.Do(req) //#nosec G704
+	resp, err := httpClient.Do(req) //#nosec G704
 	if err != nil {
 		return "", err
 	}
@@ -345,13 +348,21 @@ func githubRawURL(ghURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// https://github.com/nxadm/tail/blob/master/go.mod
-	//                 0    1     2    3    4      5
-	fields := strings.Split(u.Path, "/")
-	if len(fields) < 6 {
+	fields := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+	if len(fields) < 5 {
 		return "", fmt.Errorf("%q too short", ghURL)
 	}
-	owner, repo, branch, file := fields[1], fields[2], fields[4], fields[5]
+
+	if fields[2] != "blob" {
+		return "", fmt.Errorf("%q: expected /blob/ path", ghURL)
+	}
+
+	owner, repo, branch := fields[0], fields[1], fields[3]
+	file := strings.Join(fields[4:], "/")
+	if file == "" {
+		return "", fmt.Errorf("%q: missing file path", ghURL)
+	}
+
 	u.Host = "raw.githubusercontent.com"
 	path, err := url.JoinPath(owner, repo, branch, file)
 	if err != nil {
@@ -393,13 +404,13 @@ func openURL(rawURL string) (io.ReadCloser, error) {
 		}
 	}
 
-	client := &http.Client{Timeout: httpTimeout}
+	client := &http.Client{Timeout: httpTimeout, Transport: httpClient.Transport}
 	resp, err := client.Do(req) //#nosec G704
 	if err != nil {
 		return nil, fmt.Errorf("%q: can't get- %w", rawURL, err)
 	}
-
 	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close() //#nosec CWE-703
 		return nil, fmt.Errorf("%q: bad status - %s", rawURL, resp.Status)
 	}
 

@@ -167,3 +167,40 @@ func TestHandleAPITooLarge(t *testing.T) {
 		t.Fatalf("status: %d", resp.StatusCode)
 	}
 }
+
+func TestHandleAPIBothInputsSet(t *testing.T) {
+	srv, err := newServer(8)
+	if err != nil {
+		t.Fatalf("newServer: %v", err)
+	}
+
+	form := url.Values{}
+	form.Set("repo", "owner/repo")
+	form.Set("content", testGoMod)
+	req := httptest.NewRequest(http.MethodPost, "/api", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	srv.handleAPI(w, req)
+
+	if w.Result().StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: %d", w.Result().StatusCode)
+	}
+}
+
+func TestHandleAPIMissingInput(t *testing.T) {
+	srv, err := newServer(8)
+	if err != nil {
+		t.Fatalf("newServer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api", strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	srv.handleAPI(w, req)
+
+	if w.Result().StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: %d", w.Result().StatusCode)
+	}
+}

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path"
@@ -51,42 +53,74 @@ func Test_repoInfo(t *testing.T) {
 }
 
 func Test_repoDesc(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("In CI")
-	}
+	restore := setupGitHubHTTP(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/pkg/errors" {
+			http.NotFound(w, r)
+			return
+		}
 
-	owner, repo := "pkg", "errors"
-	expected := "Simple error handling primitives" // FIXME: brittle
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"description":"Simple error handling primitives"}`)
+	})
+	defer restore()
 
 	ctx, cancel := testCtx(t)
 	defer cancel()
 
-	desc, err := repoDesc(ctx, owner, repo)
+	desc, err := repoDesc(ctx, "pkg", "errors")
 	if err != nil {
 		t.Fatalf("API: %v", err)
 	}
 
+	expected := "Simple error handling primitives"
 	if desc != expected {
 		t.Fatalf("description: expected %q, got %q", expected, desc)
 	}
 }
 
 func Test_repoDescFallbackToReadme(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("In CI")
-	}
+	restore := setupGitHubHTTP(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/bmizerany/pat":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"description":""}`)
+		case "/bmizerany/pat/HEAD/README.md":
+			_, _ = io.WriteString(w, "# Pat\n\nrouter")
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	defer restore()
 
-	// bmizerany/pat has no GitHub description, so we fall back to README
-	owner, repo := "bmizerany", "pat"
 	ctx, cancel := testCtx(t)
 	defer cancel()
 
-	desc, err := repoDesc(ctx, owner, repo)
+	desc, err := repoDesc(ctx, "bmizerany", "pat")
 	if err != nil {
 		t.Fatalf("repoDesc: %v", err)
 	}
-	if desc == "" {
-		t.Fatal("expected non-empty description from README fallback")
+
+	if desc != "Pat" {
+		t.Fatalf("expected README description, got %q", desc)
+	}
+}
+
+func Test_repoDescStatusError(t *testing.T) {
+	restore := setupGitHubHTTP(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "rate limited", http.StatusTooManyRequests)
+	})
+	defer restore()
+
+	ctx, cancel := testCtx(t)
+	defer cancel()
+
+	_, err := repoDesc(ctx, "pkg", "errors")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if !strings.Contains(err.Error(), "429") {
+		t.Fatalf("expected status in error, got %v", err)
 	}
 }
 
@@ -139,7 +173,7 @@ func TestExe(t *testing.T) {
 			defer cancel()
 
 			var buf bytes.Buffer
-			cmd := exec.CommandContext(ctx, exe, testMod)
+			cmd := exec.CommandContext(ctx, exe, tc.file)
 			cmd.Stdout = &buf
 			err := cmd.Run()
 
@@ -147,8 +181,8 @@ func TestExe(t *testing.T) {
 				t.Fatalf("run: %v", err)
 			}
 
-			if buf.String() != exeExpected {
-				t.Fatalf("expected %q, got %q", exeExpected, buf.String())
+			if buf.String() != tc.output {
+				t.Fatalf("expected %q, got %q", tc.output, buf.String())
 			}
 		})
 	}
@@ -228,10 +262,13 @@ func TestGHToken(t *testing.T) {
 	t.Setenv(tokenKey, token)
 
 	oldTransport := http.DefaultClient.Transport
+	oldClient := httpClient
 	var mt mockTripper
 	http.DefaultClient.Transport = &mt
+	httpClient = &http.Client{Transport: &mt}
 	t.Cleanup(func() {
 		http.DefaultClient.Transport = oldTransport
+		httpClient = oldClient
 	})
 
 	ctx, cancel := testCtx(t)
@@ -244,17 +281,67 @@ func TestGHToken(t *testing.T) {
 }
 
 func Test_githubRawURL(t *testing.T) {
-	// TODO: More tests
-	url := "https://github.com/nxadm/tail/blob/master/go.mod"
-	expected := "https://raw.githubusercontent.com/nxadm/tail/master/go.mod"
-
-	out, err := githubRawURL(url)
-	if err != nil {
-		t.Fatalf("githubRawURL: %v", err)
+	tests := []struct {
+		name    string
+		url     string
+		want    string
+		wantErr string
+	}{
+		{
+			name: "top-level file",
+			url:  "https://github.com/nxadm/tail/blob/master/go.mod",
+			want: "https://raw.githubusercontent.com/nxadm/tail/master/go.mod",
+		},
+		{
+			name: "nested file",
+			url:  "https://github.com/owner/repo/blob/main/sub/dir/go.mod",
+			want: "https://raw.githubusercontent.com/owner/repo/main/sub/dir/go.mod",
+		},
+		{
+			name:    "non-blob URL",
+			url:     "https://github.com/owner/repo/tree/main/go.mod",
+			wantErr: "expected /blob/ path",
+		},
 	}
 
-	if out != expected {
-		t.Fatalf("expected %q, got %q", expected, out)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := githubRawURL(tc.url)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tc.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("githubRawURL: %v", err)
+			}
+
+			if out != tc.want {
+				t.Fatalf("expected %q, got %q", tc.want, out)
+			}
+		})
+	}
+}
+
+func setupGitHubHTTP(t *testing.T, handler http.HandlerFunc) func() {
+	t.Helper()
+
+	ts := httptest.NewServer(handler)
+	oldClient := httpClient
+	oldAPIBase := githubAPIBase
+	oldRawBase := githubRawBase
+
+	httpClient = ts.Client()
+	githubAPIBase = ts.URL
+	githubRawBase = ts.URL
+
+	return func() {
+		httpClient = oldClient
+		githubAPIBase = oldAPIBase
+		githubRawBase = oldRawBase
+		ts.Close()
 	}
 }
 

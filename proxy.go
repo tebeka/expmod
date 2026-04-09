@@ -18,14 +18,15 @@ func proxyRepo(ctx context.Context, dep string) (string, error) {
 		return "", err
 	}
 
-	resp, err := http.DefaultClient.Do(req) //#nosec G704
+	resp, err := httpClient.Do(req) //#nosec G704
 	if err != nil {
 		return "", fmt.Errorf("GET %q - %w", url, err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("GET %q - %s", url, resp.Status)
 	}
-	defer resp.Body.Close()
 
 	repo, err := parseProxyHTML(resp.Body)
 	if err != nil {

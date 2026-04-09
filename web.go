@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -51,6 +52,14 @@ func (s *server) pkgsFromRequest(w http.ResponseWriter, r *http.Request) ([]PkgI
 	}
 
 	repo := r.FormValue("repo")
+	content := r.FormValue("content")
+	if repo != "" && content != "" {
+		return nil, fmt.Errorf("provide repo or content, not both")
+	}
+	if repo == "" && content == "" {
+		return nil, fmt.Errorf("missing repo or content")
+	}
+
 	var rc io.ReadCloser
 	if repo != "" {
 		uri := fmt.Sprintf("%s/%s/HEAD/go.mod", githubRawBase, repo)
@@ -61,7 +70,7 @@ func (s *server) pkgsFromRequest(w http.ResponseWriter, r *http.Request) ([]PkgI
 		}
 		defer rc.Close()
 	} else {
-		rc = io.NopCloser(strings.NewReader(r.FormValue("content")))
+		rc = io.NopCloser(strings.NewReader(content))
 	}
 	return pkgsInfo(rc, s.cache)
 }
@@ -118,7 +127,7 @@ func serve(addr string) {
 	}
 
 	slog.Info("listening", "addr", addr)
-	if err := srv.ListenAndServe(); err != nil {
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
